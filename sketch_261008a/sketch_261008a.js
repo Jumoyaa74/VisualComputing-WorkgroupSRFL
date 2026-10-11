@@ -2,6 +2,18 @@ const CELL = 50, COLS = 12, ROWS = 10;
 // Filas: 0 = metas, 1-3 = agua, 4 = zona segura, 5-8 = carretera, 9 = inicio
 const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60;
 let lanes, frog, slots, lives, state; // state: play | over | win
+let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg;
+
+function preload() {
+  frogImg = loadImage('img/frog.png');
+  lilypadImg = loadImage('img/lilypad.png');
+  treeImg = loadImage('img/tree.png');
+  car1Img = loadImage('img/car1.png');
+  car2Img = loadImage('img/car2.png');
+  car3Img = loadImage('img/car3.png');
+  car4Img = loadImage('img/car4.png');
+  roadImg = loadImage('img/road.png');
+}
 
 function setup() {
   createCanvas(COLS * CELL, ROWS * CELL);
@@ -14,20 +26,41 @@ function newGame() {
   state = 'play';
   lanes = [
     // agua (troncos)
-    { row: 1, speed: 1.2,  w: 150, gap: 220, water: true },
-    { row: 2, speed: -1.8, w: 100, gap: 200, water: true },
-    { row: 3, speed: 1.0,  w: 200, gap: 250, water: true },
-    // carretera (autos)
-    { row: 5, speed: -2.2, w: 60,  gap: 220, water: false },
-    { row: 6, speed: 1.6,  w: 90,  gap: 260, water: false },
-    { row: 7, speed: -3.0, w: 50,  gap: 240, water: false },
-    { row: 8, speed: 2.0,  w: 70,  gap: 200, water: false },
+// Agua
+{ row: 1, speed: 1.2,  w: CELL, water: true, pattern: [1, 1, 1, 0, 0] },
+{ row: 2, speed: -1.8, w: CELL, water: true, pattern: [1, 1, 0, 0, 0, 1, 0] },
+{ row: 3, speed: 1.0,  w: CELL, water: true, pattern: [1, 1, 1, 1, 0, 0] },
+
+// Carretera
+{ row: 5, speed: -2.2, w: 50,  gap: 200, water: false },
+{ row: 6, speed: 1.6,  w: 100, gap: 250, water: false },
+{ row: 7, speed: -3.0, w: 50,  gap: 200, water: false },
+{ row: 8, speed: 2.0,  w: 100, gap: 200, water: false },
   ];
   for (const l of lanes) {
-    l.items = [];
+  l.items = [];
+  if (l.water) {
+    const plen = l.pattern.length * CELL;
+    // cuántas repeticiones hacen falta para cubrir el canvas + un margen
+    const reps = ceil((width + 2 * CELL) / plen);
+    l.loopStart = -CELL;
+    l.loop = reps * plen;
+
+    const shift = floor(random(l.pattern.length)) * CELL;
+    for (let k = 0; k < reps; k++) {
+      for (let j = 0; j < l.pattern.length; j++) {
+        if (l.pattern[j]) {
+          let x = l.loopStart + (k * l.pattern.length + j) * CELL + shift;
+          if (x >= l.loopStart + l.loop) x -= l.loop;
+          l.items.push(x);
+        }
+      }
+    }
+  } else {
     const step = l.w + l.gap;
-    for (let x = random(0, 80); x < width + step; x += step) l.items.push(x);
+    for (let x = random(0, 100); x < width + step; x += step) l.items.push(x);
   }
+}
   resetFrog();
 }
 
@@ -59,19 +92,28 @@ function checkGoal() {
 }
 
 function update() {
+  // Mover items
   for (const l of lanes) {
     for (let i = 0; i < l.items.length; i++) {
       l.items[i] += l.speed;
-      if (l.speed > 0 && l.items[i] > width) l.items[i] = -l.w;
-      if (l.speed < 0 && l.items[i] + l.w < 0) l.items[i] = width;
+      if (l.water) {
+        // reciclar manteniendo el patrón
+        if (l.items[i] >= l.loopStart + l.loop) l.items[i] -= l.loop;
+        if (l.items[i] < l.loopStart) l.items[i] += l.loop;
+      } else {
+        if (l.speed > 0 && l.items[i] > width) l.items[i] = -l.w;
+        if (l.speed < 0 && l.items[i] + l.w < 0) l.items[i] = width;
+      }
     }
   }
+
+  // Colisiones
   const lane = lanes.find(l => l.row === frog.row);
   if (!lane) return;
-  const cx = frog.x + CELL / 2;
+
   if (lane.water) {
-    const log = lane.items.find(x => cx >= x && cx <= x + lane.w);
-    if (!log && log !== 0) { loseLife(); return; }
+    const onLog = lane.items.some(x => frog.x + 10 > x && frog.x + CELL - 10 < x + lane.w);
+    if (!onLog) { loseLife(); return; }
     frog.x += lane.speed; // el tronco lo arrastra
     if (frog.x < -CELL / 2 || frog.x > width - CELL / 2) loseLife();
   } else {
@@ -82,29 +124,62 @@ function update() {
 }
 
 function draw() {
-  background(0);
+  for (const l of lanes) {
+  if (!l.water) {
+    for (let col = 0; col < COLS; col++) {
+      image(roadImg, col * CELL, l.row * CELL, CELL, CELL);
+    }
+  }
+}
   if (state === 'play') update();
 
   // agua
-  noStroke(); fill(8, 8, 35); rect(0, CELL, width, CELL * 3);
+  noStroke(); fill(142, 216, 250); rect(0, CELL, width, CELL * 3);
   // zonas seguras
   fill(25); rect(0, 4 * CELL, width, CELL);
   rect(0, 9 * CELL, width, CELL);
   // fila de metas: muros con 5 puestos libres
-  fill(45); rect(0, 0, width, CELL);
-  fill(0);
-  for (const c of SLOT_CENTERS) rect(c - SLOT_W / 2, 0, SLOT_W, CELL);
-  fill(0, 200, 0);
-  slots.forEach((f, i) => { if (f) rect(SLOT_CENTERS[i] - 20, 5, 40, 40); });
+// fila de metas: Lily pads
+fill(142, 216, 252);
+rect(0, 0, width, CELL);
 
-  // troncos y autos (grises)
-  for (const l of lanes) {
-    fill(l.water ? 120 : 170);
-    for (const x of l.items) rect(x, l.row * CELL + 5, l.w, 40, l.water ? 6 : 2);
+for (let i = 0; i < SLOT_CENTERS.length; i++) {
+  image(lilypadImg, SLOT_CENTERS[i] - SLOT_W / 2, 0, SLOT_W, CELL);
+
+  if (slots[i]) {
+    image(frogImg, SLOT_CENTERS[i] - 20, 5, 40, 40);
   }
+}
+  // troncos y autos (grises)
+// Troncos con textura y autos
+// Troncos con textura y carros con textura
+for (const l of lanes) {
+  for (const x of l.items) {
+    if (l.water) {
+      for (let offset = 0; offset < l.w; offset += CELL) {
+        image(treeImg, x, l.row * CELL, CELL, CELL);
+      }
+    } else {
+      let carImg;
+      if (l.row === 8){
+         image(car1Img,x,l.row * CELL + (CELL - 80) / 2,60,60);
+      } else if (l.row === 7) {
+         image(car2Img,x,l.row * CELL + (CELL - 80) / 2,60,60);
+      } else if (l.row === 6) {
+         image(car3Img,x,l.row * CELL + (CELL - 80) / 2,80,80);
+      } else {
+         image(car4Img,x,l.row * CELL + (CELL - 80) / 2,80,80);
+      }
+  
+
+    }
+  }
+}
 
   // jugador
-  if (state === 'play') { fill(0, 220, 0); rect(frog.x + 5, frog.row * CELL + 5, 40, 40); }
+  if (state === 'play') {
+  image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
+}
 
   // HUD
   fill(200); textSize(14); textAlign(LEFT, TOP);
