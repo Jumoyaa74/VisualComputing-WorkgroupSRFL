@@ -15,7 +15,7 @@ function sinkAmount(l) {
   if (p < 340) return 1;                  // hundido
   return 1 - (p - 340) / 60;              // reapareciendo
 }
-const logUsable = l => sinkAmount(l) < 0.6; // si está muy hundido, no sirve
+const logUsable = l => sinkAmount(l) < 0.6; 
 
 function preload() {
   frogImg = loadImage('img/frog.png');
