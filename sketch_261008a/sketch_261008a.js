@@ -13,7 +13,7 @@ function sinkAmount(l) {
   if (p < 200) return 0;                  // arriba
   if (p < 260) return (p - 200) / 60;     // hundiéndose
   if (p < 340) return 1;                  // hundido
-  return 1 - (p - 340) / 60;              // reapareciendo
+  return 1 - (p - 340) / 60;              
 }
 const logUsable = l => sinkAmount(l) < 0.6; 
 
