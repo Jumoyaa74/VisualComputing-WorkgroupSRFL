@@ -1,8 +1,21 @@
-const CELL = 50, COLS = 12, ROWS = 10;
+const CELL = 50, COLS = 12, ROWS = 11;
 // Filas: 0 = metas, 1-3 = agua, 4 = zona segura, 5-8 = carretera, 9 = inicio
 const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60;
 let lanes, frog, slots, lives, state; // state: play | over | win
-let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg;
+let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg;
+
+let tick = 0;
+const SINK_PERIOD = 400; // duración del ciclo completo (frames)
+
+// 0 = visible del todo, 1 = hundido del todo
+function sinkAmount(l) {
+  const p = (tick + l.sinkOffset) % SINK_PERIOD;
+  if (p < 200) return 0;                  // arriba
+  if (p < 260) return (p - 200) / 60;     // hundiéndose
+  if (p < 340) return 1;                  // hundido
+  return 1 - (p - 340) / 60;              // reapareciendo
+}
+const logUsable = l => sinkAmount(l) < 0.6; // si está muy hundido, no sirve
 
 function preload() {
   frogImg = loadImage('img/frog.png');
@@ -13,6 +26,7 @@ function preload() {
   car3Img = loadImage('img/car3.png');
   car4Img = loadImage('img/car4.png');
   roadImg = loadImage('img/road.png');
+  brickImg = loadImage('img/brick.png');
 }
 
 function setup() {
@@ -28,17 +42,19 @@ function newGame() {
     // agua (troncos)
 // Agua
 { row: 1, speed: 1.2,  w: CELL, water: true, pattern: [1, 1, 1, 0, 0] },
-{ row: 2, speed: -1.8, w: CELL, water: true, pattern: [1, 1, 0, 0, 0, 1, 0] },
+{ row: 2, speed: -1.8, w: CELL, water: true, pattern: [1, 1, 0, 0, 0, 1, 0], sinkJ: [0, 1], sinkOffset: 0 },
 { row: 3, speed: 1.0,  w: CELL, water: true, pattern: [1, 1, 1, 1, 0, 0] },
+{ row: 4, speed: -1.5, w: CELL, water: true, pattern: [0, 1, 1, 0, 0, 0], sinkJ: [1, 2], sinkOffset: 150 },
 
 // Carretera
-{ row: 5, speed: -2.2, w: 50,  gap: 200, water: false },
-{ row: 6, speed: 1.6,  w: 100, gap: 250, water: false },
-{ row: 7, speed: -3.0, w: 50,  gap: 200, water: false },
-{ row: 8, speed: 2.0,  w: 100, gap: 200, water: false },
+{ row: 9, speed: -1.2, w: 60,  gap: 400, water: false},
+{ row: 6, speed: 1.0,  w: 60, gap: 200, water: false },
+{ row: 7, speed: -1.4, w: 60,  gap: 500, water: false },
+{ row: 8, speed: 2.0,  w: 60, gap: 400, water: false },
   ];
   for (const l of lanes) {
   l.items = [];
+  l.sinkFlags = [];
   if (l.water) {
     const plen = l.pattern.length * CELL;
     // cuántas repeticiones hacen falta para cubrir el canvas + un margen
@@ -53,18 +69,20 @@ function newGame() {
           let x = l.loopStart + (k * l.pattern.length + j) * CELL + shift;
           if (x >= l.loopStart + l.loop) x -= l.loop;
           l.items.push(x);
+          // solo la primera repetición se hunde → solo 2 troncos por fila
+          l.sinkFlags.push(!!l.sinkJ && k === 0 && l.sinkJ.includes(j));
         }
       }
     }
   } else {
     const step = l.w + l.gap;
-    for (let x = random(0, 100); x < width + step; x += step) l.items.push(x);
+    for (let x = random(0, 50); x < width + step; x += step) l.items.push(x);
   }
 }
   resetFrog();
 }
 
-function resetFrog() { frog = { x: 6 * CELL, row: 9 }; }
+function resetFrog() { frog = { x: 5 * CELL, row: 10 }; }
 
 function loseLife() {
   lives--;
@@ -92,6 +110,7 @@ function checkGoal() {
 }
 
 function update() {
+  tick++;
   // Mover items
   for (const l of lanes) {
     for (let i = 0; i < l.items.length; i++) {
@@ -111,14 +130,20 @@ function update() {
   const lane = lanes.find(l => l.row === frog.row);
   if (!lane) return;
 
-  if (lane.water) {
-    const onLog = lane.items.some(x => frog.x + 10 > x && frog.x + CELL - 10 < x + lane.w);
-    if (!onLog) { loseLife(); return; }
-    frog.x += lane.speed; // el tronco lo arrastra
-    if (frog.x < -CELL / 2 || frog.x > width - CELL / 2) loseLife();
+if (lane.water) {
+  const cx = frog.x + CELL / 2;
+  const EPS = 0.5; // tolerancia por errores de decimales entre troncos pegados
+  const onLog = lane.items.some((x, i) =>
+  cx >= x - EPS && cx <= x + lane.w + EPS &&
+  (!lane.sinkFlags[i] || logUsable(lane))
+);
+  if (!onLog) { loseLife(); return; }
+  frog.x += lane.speed; // el tronco lo arrastra
+  if (frog.x < -CELL / 2 || frog.x > width - CELL / 2) loseLife();
   } else {
+    const PAD =10;
     for (const x of lane.items) {
-      if (frog.x + 45 > x && frog.x + 5 < x + lane.w) { loseLife(); return; }
+      if (frog.x + 45 > x + PAD && frog.x + 5 < x + lane.w - PAD) { loseLife(); return; }
     }
   }
 }
@@ -134,10 +159,13 @@ function draw() {
   if (state === 'play') update();
 
   // agua
-  noStroke(); fill(142, 216, 250); rect(0, CELL, width, CELL * 3);
+  noStroke(); fill(142, 216, 250); rect(0, CELL, width, CELL * 4);
   // zonas seguras
-  fill(25); rect(0, 4 * CELL, width, CELL);
-  rect(0, 9 * CELL, width, CELL);
+  for (let col = 0; col < COLS; col++) {
+  image(brickImg, col * CELL, 5 * CELL, CELL, CELL);
+  image(brickImg, col * CELL, 10 * CELL, CELL, CELL);
+}
+
   // fila de metas: muros con 5 puestos libres
 // fila de metas: Lily pads
 fill(142, 216, 252);
@@ -153,22 +181,38 @@ for (let i = 0; i < SLOT_CENTERS.length; i++) {
   // troncos y autos (grises)
 // Troncos con textura y autos
 // Troncos con textura y carros con textura
+
 for (const l of lanes) {
-  for (const x of l.items) {
+  for (let i = 0; i < l.items.length; i++) {
+    const x = l.items[i];
     if (l.water) {
-      for (let offset = 0; offset < l.w; offset += CELL) {
-        image(treeImg, x, l.row * CELL, CELL, CELL);
+      const y = l.row * CELL;
+      if (l.sinkFlags[i]) {
+        const a = sinkAmount(l);
+        const s = 1 - 0.3 * a; // se encoge al hundirse
+        push();
+        tint(255, 255 * (1 - a)); // se vuelve transparente
+        image(treeImg, x + (CELL * (1 - s)) / 2, y + (CELL * (1 - s)) / 2, CELL * s, CELL * s);
+        pop();
+        // ondas de agua cuando está hundiéndose
+        if (a > 0.3) {
+          noFill(); stroke(255, 255 * a); strokeWeight(2);
+          ellipse(x + CELL / 2, y + CELL / 2, 30 * a, 18 * a);
+          noStroke();
+        }
+      } else {
+        image(treeImg, x, y, CELL, CELL);
       }
-    } else {
+    }  else {
       let carImg;
       if (l.row === 8){
-         image(car1Img,x,l.row * CELL + (CELL - 80) / 2,60,60);
+         image(car1Img,x,l.row * CELL + (CELL - 80) / 2, l.w, l.w);
       } else if (l.row === 7) {
-         image(car2Img,x,l.row * CELL + (CELL - 80) / 2,60,60);
+         image(car2Img,x,l.row * CELL + (CELL - 60) / 2,l.w, l.w-20);
       } else if (l.row === 6) {
-         image(car3Img,x,l.row * CELL + (CELL - 80) / 2,80,80);
+         image(car3Img,x,l.row * CELL + (CELL - 65) / 2,l.w, l.w-15);
       } else {
-         image(car4Img,x,l.row * CELL + (CELL - 80) / 2,80,80);
+         image(car4Img,x,l.row * CELL + (CELL - 70) / 2,l.w, l.w-10);
       }
   
 
