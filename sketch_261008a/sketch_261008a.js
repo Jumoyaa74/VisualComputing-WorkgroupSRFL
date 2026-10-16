@@ -3,10 +3,15 @@ const CELL = 50, COLS = 12, ROWS = 11;
 const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60, TIME_LIMIT = 30;
 let lanes, frog, slots, lives, state, timerLife, score; // state: play | over | win
 let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg;
+let frogAu, bgAu, ggAu, deathAu, dingAu;
 let gameFont;
 
 let tick = 0;
 const SINK_PERIOD = 400; // duración del ciclo completo (frames)
+
+let dying = false;
+let deathStart = 0;
+const deathDuration = 3000;
 
 // 0 = visible del todo, 1 = hundido del todo
 function sinkAmount(l) {
@@ -29,6 +34,11 @@ function preload() {
   car4Img = loadImage('img/car4.png');
   roadImg = loadImage('img/road.png');
   brickImg = loadImage('img/mariobrick.png');
+  frogAu = loadSound('audios/frogAu.mp3');
+  bgAu = loadSound('audios/bgAu.mp3');
+  ggAu = loadSound('audios/ggAu.mp3');
+  deathAu = loadSound('audios/deathAu.mp3');
+  dingAu = loadSound('audios/dingAu.mp3');
 }
 
 function setup() {
@@ -46,6 +56,11 @@ function newGame() {
   slots = [false, false, false, false, false];
   state = 'play';
   score = 0;
+  ggAu.stop();
+  bgAu.stop();
+  userStartAudio();
+  bgAu.setVolume(0.3);
+  bgAu.loop();
   lanes = [
     // agua (troncos)
 // Agua
@@ -56,7 +71,7 @@ function newGame() {
 
 // Carretera
 { row: 9, speed: -1.2, w: 60,  gap: 400, water: false},
-{ row: 6, speed: 1.0,  w: 60, gap: 200, water: false },
+{ row: 6, speed: 1.0,  w: 60, gap: 300, water: false },
 { row: 7, speed: -1.4, w: 60,  gap: 500, water: false },
 { row: 8, speed: 2.0,  w: 60, gap: 400, water: false },
   ];
@@ -96,10 +111,21 @@ function resetFrog() {
 }
 
 function loseLife() {
+  if (dying) return;
+
   lives--;
-  if (lives <= 0) state = 'over'; else resetFrog();
+  deathAu.setVolume(0.3);
+  deathAu.play();
+
+  dying = true;
+  deathStart = millis();
 }
 
+function croak() {
+  userStartAudio();
+  frogAu.setVolume(0.3);
+  frogAu.play();
+}
 function keyPressed() {
   function keyPressed() {
   if (state === 'intro' && key === ' ') {
@@ -118,10 +144,22 @@ function keyPressed() {
   // UN CHEAT
   if (key === '?') state = 'win';
   if (state !== 'play') return;
-  if (keyCode === UP_ARROW || key === 'w') frog.row = max(0, frog.row - 1);
-  else if (keyCode === DOWN_ARROW || key === 's') frog.row = min(ROWS - 1, frog.row + 1);
-  else if (keyCode === LEFT_ARROW || key === 'a') frog.x = max(0, frog.x - CELL);
-  else if (keyCode === RIGHT_ARROW || key === 'd') frog.x = min(width - CELL, frog.x + CELL);
+  if (keyCode === UP_ARROW || key === 'w') {
+  frog.row = max(0, frog.row - 1);
+  croak();
+  }
+  else if (keyCode === DOWN_ARROW || key === 's') {
+    frog.row = min(ROWS - 1, frog.row + 1);
+      croak();
+  }
+  else if (keyCode === LEFT_ARROW || key === 'a') {
+    frog.x = max(0, frog.x - CELL);
+      croak();
+  }
+  else if (keyCode === RIGHT_ARROW || key === 'd') {
+    frog.x = min(width - CELL, frog.x + CELL);
+      croak();
+  }
   else return;
   if (frog.row === 0) checkGoal();
   return false;
@@ -131,6 +169,9 @@ function checkGoal() {
   const cx = frog.x + CELL / 2;
   const i = SLOT_CENTERS.findIndex(c => abs(cx - c) <= SLOT_W / 2);
   if (i === -1 || slots[i]) { loseLife(); return; } // muro o puesto ocupado
+  userStartAudio();
+  dingAu.setVolume(0.3);
+  dingAu.play();
   slots[i] = true;
   const bonus = ceil(timerLife) * 10; // da 10 puntos por segundo
   score += bonus;
@@ -258,9 +299,33 @@ for (const l of lanes) {
   }
 }
 
-  // jugador
-  if (state === 'play') {
-  image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
+// jugador
+if (state === 'play') {
+  if (dying) {
+    let elapsed = millis() - deathStart;
+
+    if (elapsed < deathDuration) {
+      let progress = elapsed / deathDuration;
+      let size = 40 * (1 - progress);
+
+      push();
+      translate(frog.x + CELL / 2, frog.row * CELL + CELL / 2);
+      rotate(TWO_PI * 3 * progress);
+      imageMode(CENTER);
+      image(frogImg, 0, 0, size, size);
+      pop();
+    } else {
+      dying = false;
+
+      if (lives <= 0) {
+        state = 'over';
+      } else {
+        resetFrog();
+      }
+    }
+  } else {
+    image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
+  }
 }
 
   // timer de vida
@@ -304,5 +369,11 @@ for (const l of lanes) {
     text(state === 'win' ? '¡Nivel 1 completado!' : 'Game over', width / 2, height / 2 - 15);
     textSize(32); text('Tu  Puntaje  fue:  ' + score, width / 2, height / 2 + 50);
     textSize(32); text('Pulsa ESPACIO para jugar de nuevo', width / 2, height / 2 + 80);
+     if (state === 'over' && !ggAu.isPlaying()) {
+      bgAu.stop();
+      userStartAudio();
+      ggAu.setVolume(0.3);
+      ggAu.loop();
+     }
   }
 }
