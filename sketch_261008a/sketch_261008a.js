@@ -1,8 +1,9 @@
 const CELL = 50, COLS = 12, ROWS = 11;
 // Filas: 0 = metas, 1-3 = agua, 4 = zona segura, 5-8 = carretera, 9 = inicio
-const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60;
-let lanes, frog, slots, lives, state; // state: play | over | win
-let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg;
+const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60, TIME_LIMIT = 30;
+let lanes, frog, slots, lives, state, timerLife, score; // state: play | over | win
+let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg;
+let gameFont;
 
 let tick = 0;
 const SINK_PERIOD = 400; // duración del ciclo completo (frames)
@@ -18,26 +19,33 @@ function sinkAmount(l) {
 const logUsable = l => sinkAmount(l) < 0.6; 
 
 function preload() {
-  frogImg = loadImage('img/frog.png');
+  logoImg = loadImage('img/sapoPixel.png')
+  frogImg = loadImage('img/frog1.png');
   lilypadImg = loadImage('img/lilypad.png');
-  treeImg = loadImage('img/tree.png');
+  treeImg = loadImage('img/tree1.png');
   car1Img = loadImage('img/car1.png');
   car2Img = loadImage('img/car2.png');
   car3Img = loadImage('img/car3.png');
   car4Img = loadImage('img/car4.png');
   roadImg = loadImage('img/road.png');
-  brickImg = loadImage('img/brick.png');
+  brickImg = loadImage('img/mariobrick.png');
 }
 
 function setup() {
   createCanvas(COLS * CELL, ROWS * CELL);
+  //gameFont = loadFont('fonts/ARCADECLASSIC.TTF')
+  //gameFont = loadFont('fonts/Porto_Buena.otf')
+  gameFont = loadFont('fonts/LowresPixel-Regular.otf')
   newGame();
+  state = 'intro';
 }
 
 function newGame() {
+  time_score = 500
   lives = 3;
   slots = [false, false, false, false, false];
   state = 'play';
+  score = 0;
   lanes = [
     // agua (troncos)
 // Agua
@@ -82,7 +90,10 @@ function newGame() {
   resetFrog();
 }
 
-function resetFrog() { frog = { x: 5 * CELL, row: 10 }; }
+function resetFrog() {
+  frog = { x: 5 * CELL, row: 10 };
+  timerLife = TIME_LIMIT;
+}
 
 function loseLife() {
   lives--;
@@ -90,7 +101,22 @@ function loseLife() {
 }
 
 function keyPressed() {
+  function keyPressed() {
+  if (state === 'intro' && key === ' ') {
+    state = 'play';
+    return false;
+  }
+  if ((state === 'over' || state === 'win') && key === ' ') {
+    newGame();
+    return false;
+  }
+  if (state !== 'play') return;
+
+  // teclas pa mover la rana
+}
   if (key === ' ') { newGame(); return false; }
+  // UN CHEAT
+  if (key === '?') state = 'win';
   if (state !== 'play') return;
   if (keyCode === UP_ARROW || key === 'w') frog.row = max(0, frog.row - 1);
   else if (keyCode === DOWN_ARROW || key === 's') frog.row = min(ROWS - 1, frog.row + 1);
@@ -106,6 +132,8 @@ function checkGoal() {
   const i = SLOT_CENTERS.findIndex(c => abs(cx - c) <= SLOT_W / 2);
   if (i === -1 || slots[i]) { loseLife(); return; } // muro o puesto ocupado
   slots[i] = true;
+  const bonus = ceil(timerLife) * 10; // da 10 puntos por segundo
+  score += bonus;
   if (slots.every(Boolean)) state = 'win'; else resetFrog();
 }
 
@@ -146,9 +174,18 @@ if (lane.water) {
       if (frog.x + 45 > x + PAD && frog.x + 5 < x + lane.w - PAD) { loseLife(); return; }
     }
   }
+  // contador
+  timerLife = timerLife - (deltaTime/1000)
+  if (timerLife <= 0){
+    timerLife = 0;
+    loseLife();
+    return;
+  }
 }
 
 function draw() {
+  
+  // esto solo crea lo azul del agua
   for (const l of lanes) {
   if (!l.water) {
     for (let col = 0; col < COLS; col++) {
@@ -156,6 +193,7 @@ function draw() {
     }
   }
 }
+   // 
   if (state === 'play') update();
 
   // agua
@@ -225,14 +263,46 @@ for (const l of lanes) {
   image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
 }
 
+  // timer de vida
+  // if
   // HUD
   fill(200); textSize(14); textAlign(LEFT, TOP);
-  text('Vidas: ' + lives + '   Puestos: ' + slots.filter(Boolean).length + '/5', 6, height - 16);
+  textFont(gameFont)
+  fill(255);
+  text('Vidas ' + lives + '   Puestos ' + slots.filter(Boolean).length + '  de  5' + '  Tiempo  Restante ' + floor(timerLife) , 6, height - 16);
 
-  if (state !== 'play') {
+//  if (state !== 'play') {
+//    fill(0, 0, 0, 190); rect(0, 0, width, height);
+//    fill(255); textAlign(CENTER, CENTER); textSize(64);
+//    text(state === 'win' ? '¡Nivel 1 completado!' : 'Game over', width / 2, height / 2 - 15);
+//    textSize(32); text('Tu  Puntaje  fue:  ' + score, width / 2, height / 2 + 50);
+//    textSize(32); text('Pulsa ESPACIO para jugar de nuevo', width / 2, height / 2 + 80);
+  //}
+  if (state === 'intro') {
+    fill(0, 0, 0, 190); 
+    rect(0, 0, width, height);
+    imageMode(CENTER);
+    image(logoImg, width / 2, height / 2 - 50, 250, 100); // ajusta ancho/alto a tu logo
+    imageMode(CORNER); // Restaurar alineación estándar de p5
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    text('FROGGAYR', width / 2, height / 2 - 150);
+    fill(255);
+    textAlign(CENTER, CENTER);
+    textSize(18);
+    text('Presiona ESPACIO para comenzar', width / 2, height / 2 + 60);
+    fill(255);
+    textAlign(LEFT, );
+    textSize(12);
+    text('Hecho por Luisa Bautista, Sebastian Moya, Felipe Duque y Rafael Otero', 6, height - 16);
+  }
+  // win o game over
+  if (state === 'over' || state === 'win') {
     fill(0, 0, 0, 190); rect(0, 0, width, height);
-    fill(255); textAlign(CENTER, CENTER); textSize(32);
+    fill(255); textAlign(CENTER, CENTER); textSize(64);
     text(state === 'win' ? '¡Nivel 1 completado!' : 'Game over', width / 2, height / 2 - 15);
-    textSize(16); text('Pulsa ESPACIO para jugar de nuevo', width / 2, height / 2 + 25);
+    textSize(32); text('Tu  Puntaje  fue:  ' + score, width / 2, height / 2 + 50);
+    textSize(32); text('Pulsa ESPACIO para jugar de nuevo', width / 2, height / 2 + 80);
   }
 }
