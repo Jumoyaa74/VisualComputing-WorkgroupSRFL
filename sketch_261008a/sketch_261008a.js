@@ -334,7 +334,10 @@ if (state === 'play') {
   fill(200); textSize(14); textAlign(LEFT, TOP);
   textFont(gameFont)
   fill(255);
-  text('Vidas ' + lives + '   Puestos ' + slots.filter(Boolean).length + '  de  5' + '  Tiempo  Restante ' + floor(timerLife) , 6, height - 16);
+  text('Vidas ' + lives + '   Puestos ' + slots.filter(Boolean).length + '  de  5', 6, height - 16);
+  // el tiempo va aparte a la derecha pa que se vea
+  textAlign(RIGHT, TOP);
+  text('Tiempo ' + floor(timerLife), width - 6, height - 16);
 
 //  if (state !== 'play') {
 //    fill(0, 0, 0, 190); rect(0, 0, width, height);
