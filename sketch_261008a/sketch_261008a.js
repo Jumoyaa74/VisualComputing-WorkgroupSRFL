@@ -4,7 +4,7 @@ const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60, TIME_LIMIT = 30;
 let lanes, frog, slots, lives, state, timerLife, score; // state: play | over | win
 let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg;
 let gameFont;
-
+let lastPadState = { up: false, down: false, left: false, right: false };
 let tick = 0;
 const SINK_PERIOD = 400; // duración del ciclo completo (frames)
 
@@ -17,6 +17,47 @@ function sinkAmount(l) {
   return 1 - (p - 340) / 60;              
 }
 const logUsable = l => sinkAmount(l) < 0.6; 
+
+
+ ///// INICIO DEl GAMEPAD
+ 
+ function checkGamepad() {
+  // Obtener todos los mandos conectados
+  const gamepads = navigator.getGamepads();
+  const pad = gamepads[0]; // Usar el jugador 1
+
+  // Si no hay mando conectado, salir
+  if (!pad) return;
+
+  // Botones estándar del D-Pad en Xinput:
+  // 12: Arriba, 13: Abajo, 14: Izquierda, 15: Derecha
+  const up = pad.buttons[12].pressed;
+  const down = pad.buttons[13].pressed;
+  const left = pad.buttons[14].pressed;
+  const right = pad.buttons[15].pressed;
+  const Abutton = pad.buttons[1].pressed;
+
+  // Mover solo si el botón está presionado AHORA, pero NO lo estaba en el frame anterior
+  if (up && !lastPadState.up) {
+    frog.row = max(0, frog.row - 1);
+    if (frog.row === 0) checkGoal(); // Comprobar meta si sube
+  }
+  if (down && !lastPadState.down) {
+    frog.row = min(ROWS - 1, frog.row + 1);
+  }
+  if (left && !lastPadState.left) {
+    frog.x = max(0, frog.x - CELL);
+  }
+  if (right && !lastPadState.right) {
+    frog.x = min(width - CELL, frog.x + CELL);
+  }
+
+  // Guardar el estado actual para el siguiente frame
+  lastPadState = { up, down, left, right };
+}
+
+
+/////////////////// FIN DEL GAMEPADA
 
 function preload() {
   logoImg = loadImage('img/sapoPixel.png')
@@ -102,7 +143,7 @@ function loseLife() {
 
 function keyPressed() {
   function keyPressed() {
-  if (state === 'intro' && key === ' ') {
+  if (state === 'intro' && (key === ' ' | Abutton)) {
     state = 'play';
     return false;
   }
@@ -258,6 +299,10 @@ for (const l of lanes) {
   }
 }
 
+  if (state === 'play') {
+    checkGamepad(); // <--- Leer el mando en cada frame
+    update();
+  }
   // jugador
   if (state === 'play') {
   image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
