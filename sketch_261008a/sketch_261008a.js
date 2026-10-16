@@ -195,6 +195,14 @@ function update() {
     }
   }
 
+  // contador (ahora corre en todas las filas)
+  timerLife = timerLife - (deltaTime/1000)
+  if (timerLife <= 0){
+    timerLife = 0;
+    loseLife();
+    return;
+  }
+
   // Colisiones
   const lane = lanes.find(l => l.row === frog.row);
   if (!lane) return;
@@ -214,13 +222,6 @@ if (lane.water) {
     for (const x of lane.items) {
       if (frog.x + 45 > x + PAD && frog.x + 5 < x + lane.w - PAD) { loseLife(); return; }
     }
-  }
-  // contador
-  timerLife = timerLife - (deltaTime/1000)
-  if (timerLife <= 0){
-    timerLife = 0;
-    loseLife();
-    return;
   }
 }
 
