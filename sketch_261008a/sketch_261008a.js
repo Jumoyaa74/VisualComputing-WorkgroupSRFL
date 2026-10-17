@@ -179,11 +179,13 @@ function checkGoal() {
 }
 
 function update() {
-  tick++;
+  // dt = 1 cuando va a 60 fps, asi la velocidad no depende del monitor
+  const dt = min(deltaTime, 50) / (1000 / 60);
+  tick += dt;
   // Mover items
   for (const l of lanes) {
     for (let i = 0; i < l.items.length; i++) {
-      l.items[i] += l.speed;
+      l.items[i] += l.speed * dt;
       if (l.water) {
         // reciclar manteniendo el patrón
         if (l.items[i] >= l.loopStart + l.loop) l.items[i] -= l.loop;
@@ -215,7 +217,7 @@ if (lane.water) {
   (!lane.sinkFlags[i] || logUsable(lane))
 );
   if (!onLog) { loseLife(); return; }
-  frog.x += lane.speed; // el tronco lo arrastra
+  frog.x += lane.speed * dt; // el tronco lo arrastra
   if (frog.x < -CELL / 2 || frog.x > width - CELL / 2) loseLife();
   } else {
     const PAD =10;
