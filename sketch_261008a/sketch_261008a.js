@@ -167,6 +167,13 @@ function keyPressed() {
   return false;
 }
 
+// con el click tambien se empieza (antes solo con espacio)
+function mousePressed() {
+  if (state === 'intro' || state === 'over' || state === 'win') {
+    newGame();
+  }
+}
+
 function checkGoal() {
   const cx = frog.x + CELL / 2;
   const i = SLOT_CENTERS.findIndex(c => abs(cx - c) <= SLOT_W / 2);
