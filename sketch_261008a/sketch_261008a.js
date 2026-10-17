@@ -178,8 +178,19 @@ function keyPressed() {
   }
   else return;
   hop = 0; // arranca el salto
+  snapToLog();
   if (frog.row === 0) checkGoal();
   return false;
+}
+
+// pone la rana justo encima del tronco pa que no quede a la mitad de dos
+function snapToLog() {
+  const lane = lanes.find(l => l.row === frog.row);
+  if (!lane || !lane.water) return;
+  const cx = frog.x + CELL / 2;
+  for (const x of lane.items) {
+    if (cx >= x && cx <= x + lane.w) { frog.x = x; return; }
+  }
 }
 
 // con el click tambien se empieza (antes solo con espacio)
