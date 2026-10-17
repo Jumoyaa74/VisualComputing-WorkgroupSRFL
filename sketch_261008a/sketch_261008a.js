@@ -8,6 +8,11 @@ let gameFont;
 let record = 0;          // mejor puntaje (se guarda en el navegador)
 let nuevoRecord = false;
 
+// salto de la rana (solo es visual, la logica sigue igual)
+let hop = 1;             // 0 = empieza el salto, 1 = ya cayo
+let hopX = 0, hopY = 0;  // de donde salio
+let hopTimer = 0;
+
 let tick = 0;
 const SINK_PERIOD = 400; // duración del ciclo completo (frames)
 
@@ -113,6 +118,7 @@ function newGame() {
 
 function resetFrog() {
   frog = { x: 5 * CELL, row: 10 };
+  hop = 1; // sin animacion al reaparecer
   timerLife = TIME_LIMIT;
 }
 
@@ -151,6 +157,9 @@ function keyPressed() {
   if (key === '?') state = 'win';
   if (state !== 'play') return;
   if (dying) return; // no se mueve mientras se muere
+  // guardar de donde sale pa la animacion
+  hopX = frog.x;
+  hopY = frog.row * CELL;
   if (keyCode === UP_ARROW || key === 'w') {
   frog.row = max(0, frog.row - 1);
   croak();
@@ -168,6 +177,7 @@ function keyPressed() {
       croak();
   }
   else return;
+  hop = 0; // arranca el salto
   if (frog.row === 0) checkGoal();
   return false;
 }
@@ -341,7 +351,12 @@ if (state === 'play') {
       }
     }
   } else {
-    image(frogImg, frog.x + 5, frog.row * CELL + 5, 40, 40);
+    // el salto dura 120 ms, la rana se agranda a la mitad pa que parezca que salta
+    hop = min(1, hop + deltaTime / 120);
+    const fx = lerp(hopX, frog.x, hop);
+    const fy = lerp(hopY, frog.row * CELL, hop);
+    const s = 40 + 10 * sin(hop * PI);
+    image(frogImg, fx + CELL / 2 - s / 2, fy + CELL / 2 - s / 2, s, s);
   }
 }
 
