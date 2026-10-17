@@ -5,6 +5,8 @@ let lanes, frog, slots, lives, state, timerLife, score; // state: play | over | 
 let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg;
 let frogAu, bgAu, ggAu, deathAu, dingAu;
 let gameFont;
+let record = 0;          // mejor puntaje (se guarda en el navegador)
+let nuevoRecord = false;
 
 let tick = 0;
 const SINK_PERIOD = 400; // duración del ciclo completo (frames)
@@ -46,6 +48,8 @@ function setup() {
   //gameFont = loadFont('fonts/ARCADECLASSIC.TTF')
   //gameFont = loadFont('fonts/Porto_Buena.otf')
   gameFont = loadFont('fonts/LowresPixel-Regular.otf')
+  // leer el record guardado
+  record = Number(localStorage.getItem('record')) || 0;
   newGame();
   state = 'intro';
 }
@@ -56,6 +60,7 @@ function newGame() {
   slots = [false, false, false, false, false];
   state = 'play';
   dying = false;
+  nuevoRecord = false;
   score = 0;
   ggAu.stop();
   bgAu.stop();
@@ -350,6 +355,10 @@ if (state === 'play') {
   // el tiempo va aparte a la derecha pa que se vea
   textAlign(RIGHT, TOP);
   text('Tiempo ' + floor(timerLife), width - 6, height - 16);
+  // record en el centro
+  textAlign(CENTER, TOP);
+  text('Mejor ' + record, width / 2 + 60, height - 16);
+  // console.log(record);
 
 //  if (state !== 'play') {
 //    fill(0, 0, 0, 190); rect(0, 0, width, height);
@@ -384,6 +393,15 @@ if (state === 'play') {
     text(state === 'win' ? '¡Nivel 1 completado!' : 'Game over', width / 2, height / 2 - 15);
     textSize(32); text('Tu  Puntaje  fue:  ' + score, width / 2, height / 2 + 50);
     textSize(32); text('Pulsa ESPACIO para jugar de nuevo', width / 2, height / 2 + 80);
+    // guardar el record si se supero
+    if (score > record) {
+      record = score;
+      localStorage.setItem('record', record);
+      nuevoRecord = true;
+    }
+    if (nuevoRecord) {
+      textSize(24); text('¡Nuevo record!', width / 2, height / 2 + 115);
+    }
      if (state === 'over' && !ggAu.isPlaying()) {
       bgAu.stop();
       userStartAudio();
