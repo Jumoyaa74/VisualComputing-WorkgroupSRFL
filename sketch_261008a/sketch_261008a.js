@@ -55,6 +55,7 @@ function newGame() {
   lives = 3;
   slots = [false, false, false, false, false];
   state = 'play';
+  dying = false;
   score = 0;
   ggAu.stop();
   bgAu.stop();
@@ -144,6 +145,7 @@ function keyPressed() {
   // UN CHEAT
   if (key === '?') state = 'win';
   if (state !== 'play') return;
+  if (dying) return; // no se mueve mientras se muere
   if (keyCode === UP_ARROW || key === 'w') {
   frog.row = max(0, frog.row - 1);
   croak();
@@ -238,7 +240,7 @@ function draw() {
   }
 }
    // 
-  if (state === 'play') update();
+  if (state === 'play' && !dying) update(); // si se esta muriendo no corre nada
 
   // agua
   noStroke(); fill(142, 216, 250); rect(0, CELL, width, CELL * 4);
