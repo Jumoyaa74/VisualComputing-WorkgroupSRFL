@@ -2,7 +2,7 @@ const CELL = 50, COLS = 12, ROWS = 11;
 // Filas: 0 = metas, 1-3 = agua, 4 = zona segura, 5-8 = carretera, 9 = inicio
 const SLOT_CENTERS = [60, 180, 300, 420, 540], SLOT_W = 60, TIME_LIMIT = 30;
 let lanes, frog, slots, lives, state, timerLife, score; // state: play | over | win
-let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg;
+let frogImg, lilypadImg, treeImg, car1Img, car2Img, car3Img, car4Img, roadImg, brickImg, logoImg, frog2Img;
 let frogAu, bgAu, ggAu, deathAu, dingAu;
 let gameFont;
 let record = 0;          // mejor puntaje (se guarda en el navegador)
@@ -33,6 +33,7 @@ const logUsable = l => sinkAmount(l) < 0.6;
 function preload() {
   logoImg = loadImage('img/sapoPixel.png')
   frogImg = loadImage('img/frog1.png');
+  frog2Img = loadImage('img/frog2.png');
   lilypadImg = loadImage('img/lilypad.png');
   treeImg = loadImage('img/tree1.png');
   car1Img = loadImage('img/car1.png');
@@ -141,11 +142,13 @@ function croak() {
 function keyPressed() {
   function keyPressed() {
   if (state === 'intro' && key === ' ') {
-    state = 'play';
+    state = 'select';
+    console.log("estado intro")
     return false;
   }
   if ((state === 'over' || state === 'win') && key === ' ') {
     newGame();
+    state = 'intro';
     return false;
   }
   if (state !== 'play') return;
@@ -259,6 +262,18 @@ if (lane.water) {
     for (const x of lane.items) {
       if (frog.x + 45 > x + PAD && frog.x + 5 < x + lane.w - PAD) { loseLife(); return; }
     }
+  }
+}
+
+function mouseClicked() {
+  if (state === 'select') {
+    // Si hace clic en el área izquierda
+    if (mouseX < width / 2) {
+      selectedFrogImg = frogImg;
+    } else {
+      selectedFrogImg = frog2Img;
+    }
+    state = 'play'; // Arranca el juego
   }
 }
 
@@ -412,6 +427,23 @@ if (state === 'play') {
     textSize(12);
     text('Hecho por Luisa Bautista, Sebastian Moya, Felipe Duque y Rafael Otero', 6, height - 16);
   }
+  
+  //sintro
+  else if ( state === 'select') {
+    fill (0,0,0,180);
+    rect (0, 0, width, height);
+    fill(255)
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    text('ELIGE TU PERSONAJE', width / 2, height / 2 - 80);
+
+    textSize(14);
+    fill(200);
+    text('Haz clic en el sapo que prefieras', width / 2, height / 2 + 70);
+    image(frogImg, width / 2 - 90, height / 2 - 30, 60, 60); 
+    image(frog2Img, width / 2 + 30, height / 2 - 30, 60, 60);
+  }
+  
   // win o game over
   if (state === 'over' || state === 'win') {
     fill(0, 0, 0, 190); rect(0, 0, width, height);
